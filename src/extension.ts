@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as util from "util";
 import * as vscode from "vscode";
 import DocProvider from "./DocProvider";
+const jsonPath = require("jsonpath");
 
 const workerFarm = require("worker-farm");
 const searchWorker = workerFarm(require.resolve("./searchWorker"));
@@ -29,19 +30,21 @@ export function activate(context: vscode.ExtensionContext) {
         await checkDocument(doc);
         contents = JSON.parse(doc.getText());
       } catch (err) {
-        vscode.window.showErrorMessage(`Error parsing JSON: ${err.message}`);
+        vscode.window.showErrorMessage(`Error parsing JSON: ${err}`);
         return;
       }
 
-      let inputBoxOptions: Partial<InputBoxParameters> = {
-        prompt: "Enter JSON path",
-        placeholder: "$.a[0].b.c",
-        ignoreFocusOut: true,
-      };
-      const inputText = await vscode.window.showInputBox(inputBoxOptions);
-      if (inputText && inputText.length > 0) {
-        searchAndDisplayResults({ inputText, contents }, editor);
-      }
+      const box = vscode.window.createInputBox();
+      box.prompt = "Enter JSON path";
+      box.value = "$.";
+      box.onDidChangeValue((inputText: string) => {
+        searchAndDisplayResults({ inputText, contents, isRealTime: true }, editor);
+      });
+      box.onDidAccept(e => {
+        searchAndDisplayResults({ inputText: box.value, contents, isRealTime: false }, editor);
+        box.hide()
+      })
+      box.show();
     }
   );
 
@@ -54,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
         await checkDocument(doc);
         contents = JSON.parse(doc.getText());
       } catch (err) {
-        vscode.window.showErrorMessage(`Error parsing JSON: ${err.message}`);
+        vscode.window.showErrorMessage(`Error parsing JSON: ${err}`);
         return;
       }
 
@@ -78,6 +81,7 @@ interface SearchOptions {
   inputText: string;
   contents: object | any[];
   nodes?: boolean;
+  isRealTime?: boolean
 }
 
 interface InputBoxParameters {
@@ -88,6 +92,16 @@ interface InputBoxParameters {
   prompt: string;
   placeholder: string;
   ignoreFocusOut: boolean;
+}
+
+function checkIsValidJsonPath(s: string): boolean {
+  try {
+    jsonPath.parse(s)
+    return true
+  } catch (e) {
+    console.log(e)
+  }
+  return false
 }
 
 async function checkDocument(doc: vscode.TextDocument) {
@@ -108,9 +122,15 @@ async function checkDocument(doc: vscode.TextDocument) {
 }
 
 async function searchAndDisplayResults(
-  { inputText, contents, nodes = false }: SearchOptions,
+  { inputText, contents, nodes = false, isRealTime = false }: SearchOptions,
   editor: vscode.TextEditor
 ) {
+  if (!inputText || inputText.length == 0) {
+    return;
+  }
+  if (isRealTime && !checkIsValidJsonPath(inputText)) {
+    return;
+  }
   let searchPromise: Thenable<string[]> = vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -145,7 +165,8 @@ async function searchAndDisplayResults(
     }
   );
   searchPromise.then(async (jsonMatches: string[]) => {
-    let uri = DocProvider.encodeContent(jsonMatches);
+    console.log(isRealTime)
+    let uri = vscode.Uri.parse(`${DocProvider.scheme}://${editor.document.uri.path}.jsonpath?[]`);
     let jsonDoc = await vscode.workspace.openTextDocument(uri);
     try {
       await vscode.languages.setTextDocumentLanguage(jsonDoc, "json");
@@ -153,13 +174,25 @@ async function searchAndDisplayResults(
       console.error(error);
     }
     if (editor.viewColumn && editor.viewColumn < 4) {
-      await vscode.window.showTextDocument(jsonDoc, {
-        preserveFocus: false,
+      let newEditor = await vscode.window.showTextDocument(jsonDoc, {
+        preserveFocus: true,
         viewColumn: editor.viewColumn + 1,
+        preview: true,
       });
-      showQueryInfoInStatusBar(inputText);
+      relaceEditorContent(newEditor, "\n" + JSON.stringify(jsonMatches, null, 2))
+      // showQueryInfoInStatusBar(inputText);
     }
   });
+}
+
+function relaceEditorContent(newEditor: vscode.TextEditor, content: string) {
+  const firstLine = newEditor.document.lineAt(0);
+  const lastLine = newEditor.document.lineAt(newEditor.document.lineCount - 1);
+  const textRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
+  const edits = [vscode.TextEdit.replace(textRange, content)];
+  const edit = new vscode.WorkspaceEdit();
+  edit.set(newEditor.document.uri, edits);
+  vscode.workspace.applyEdit(edit)
 }
 
 function showQueryInfoInStatusBar(jpQuery: string, timeout = 9) {
