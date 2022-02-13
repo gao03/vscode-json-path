@@ -195,28 +195,28 @@ function relaceEditorContent(newEditor: vscode.TextEditor, content: string) {
   vscode.workspace.applyEdit(edit)
 }
 
-function showQueryInfoInStatusBar(jpQuery: string, timeout = 9) {
-  const progressDone = `⣀`;
-  const progressLeft = `⣿`;
-  let progress = 0;
+// function showQueryInfoInStatusBar(jpQuery: string, timeout = 9) {
+//   const progressDone = `⣀`;
+//   const progressLeft = `⣿`;
+//   let progress = 0;
 
-  const statusBarInfo = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left
-  );
-  statusBarInfo.text = `JSON Path query executed: "${jpQuery}"\t${progressDone.repeat(
-    progress
-  )}${progressLeft.repeat(timeout - 1 - progress)}`;
-  statusBarInfo.show();
+//   const statusBarInfo = vscode.window.createStatusBarItem(
+//     vscode.StatusBarAlignment.Left
+//   );
+//   statusBarInfo.text = `JSON Path query executed: "${jpQuery}"\t${progressDone.repeat(
+//     progress
+//   )}${progressLeft.repeat(timeout - 1 - progress)}`;
+//   statusBarInfo.show();
 
-  const statusBarUpdateInterval = setInterval(() => {
-    progress++;
-    statusBarInfo.text = `JSON Path query executed: "${jpQuery}"\t${progressDone.repeat(
-      progress
-    )}${progressLeft.repeat(timeout - 1 - progress)}`;
-  }, 1000);
+//   const statusBarUpdateInterval = setInterval(() => {
+//     progress++;
+//     statusBarInfo.text = `JSON Path query executed: "${jpQuery}"\t${progressDone.repeat(
+//       progress
+//     )}${progressLeft.repeat(timeout - 1 - progress)}`;
+//   }, 1000);
 
-  setTimeout(() => {
-    clearInterval(statusBarUpdateInterval);
-    statusBarInfo.dispose();
-  }, timeout * 1000);
-}
+//   setTimeout(() => {
+//     clearInterval(statusBarUpdateInterval);
+//     statusBarInfo.dispose();
+//   }, timeout * 1000);
+// }

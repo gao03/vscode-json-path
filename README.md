@@ -1,3 +1,8 @@
+# 修改点
+## `jsonPath: Extract JSON data`
+1. 修改为实时查询，输入 JsonPath 时自动执行查询，不需要按 Enter 键
+
+---
 # [jsonpath](https://github.com/dchester/jsonpath) extension for [Visual Studio Code](https://code.visualstudio.com/)
 
 [![](https://img.shields.io/vscode-marketplace/v/weijunyu.vscode-json-path.svg)](https://marketplace.visualstudio.com/items?itemName=weijunyu.vscode-json-path)
